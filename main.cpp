@@ -2,6 +2,34 @@
 #include <tuple>
 #include <functional>
 
+template<size_t _I>
+struct _Index
+{
+    using _Next = _Index<_I+1>;
+    static const size_t value = _I;
+};
+
+template<typename _Cs, typename _I>
+struct _Evaluate
+{
+    template<typename _Values>
+    inline
+    static void _evaluate(const _Cs &cs, const _Values& values) {
+        if (!std::get<_I::value>(cs)(values)) {
+            _Evaluate<_Cs, typename _I::_Next>::_evaluate(cs, values);
+        }
+    };
+};
+
+template<typename _Cs>
+struct _Evaluate<_Cs, _Index<std::tuple_size<_Cs>::value>>
+{
+    template<typename _Values>
+    inline
+    static void _evaluate(const _Cs &cs, const _Values& values) {
+    };
+};
+
 template<typename _Cs, typename ... _T>
 struct _Switch
 {
@@ -13,7 +41,7 @@ struct _Switch
 
     void operator()(const _T& ... values)
     {
-
+        _Evaluate<_Cs, _Index<0>>::_evaluate(mCases, std::make_tuple(std::cref(values)...));
     }
 };
 
@@ -42,9 +70,13 @@ struct _Case
       mValues(values)
     {}
 
-    bool operator()(_T&& ... values)
+    bool operator()(const std::tuple<const _T& ...>& values) const
     {
-        return true;
+        if(values == mValues) {
+            mFnc(values);
+            return true;
+        }
+        return false;
     }
 };
 
