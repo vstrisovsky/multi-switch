@@ -1,1 +1,1 @@
-# mutli-switch
+# multi-switch
