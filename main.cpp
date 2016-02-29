@@ -2,6 +2,29 @@
 #include <tuple>
 #include <functional>
 
+template<std::size_t ... _Indices>
+struct Indices {};
+
+template<std::size_t _N, std::size_t... _Is>
+struct BuildIndices : BuildIndices<_N-1, _N-1, _Is ...>
+{};
+
+template<std::size_t... _Is>
+struct BuildIndices<0, _Is ...> : Indices<_Is ...>
+{};
+
+template<typename _Fnc, typename _Args, std::size_t ... _Indices>
+auto _call(_Fnc &&f, _Args &&args, const Indices<_Indices...> &) -> decltype(f(std::get<_Indices>(args)...))
+{
+   return f(std::get<_Indices>(args)...);
+}
+
+template<typename _Fnc, typename _Args>
+auto call(_Fnc &&f, const _Args &args) -> decltype(_call(f, args, BuildIndices< std::tuple_size<_Args>::value>()))
+{
+    return _call(f, args, BuildIndices< std::tuple_size<_Args>::value>());
+}
+
 template<size_t _I>
 struct _Index
 {
@@ -15,7 +38,7 @@ struct _Evaluate
     template<typename _Values>
     inline
     static void _evaluate(const _Cs &cs, const _Values& values) {
-        if (!std::get<_I::value>(cs)(values)) {
+        if (!call(std::get<_I::value>(cs), values)) {
             _Evaluate<_Cs, typename _I::_Next>::_evaluate(cs, values);
         }
     };
