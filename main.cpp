@@ -2,27 +2,27 @@
 #include <tuple>
 #include <functional>
 
-template<std::size_t ... _Indices>
-struct Indices {};
+template<std::size_t ... _Is>
+struct _Indices {};
 
 template<std::size_t _N, std::size_t... _Is>
-struct BuildIndices : BuildIndices<_N-1, _N-1, _Is ...>
+struct _BuildIndices : _BuildIndices<_N-1, _N-1, _Is ...>
 {};
 
 template<std::size_t... _Is>
-struct BuildIndices<0, _Is ...> : Indices<_Is ...>
+struct _BuildIndices<0, _Is ...> : _Indices<_Is ...>
 {};
 
-template<typename _Fnc, typename _Args, std::size_t ... _Indices>
-auto _call(_Fnc &&f, _Args &&args, const Indices<_Indices...> &) -> decltype(f(std::get<_Indices>(args)...))
+template<typename _Fnc, typename _Args, std::size_t ... _Is>
+auto _call(_Fnc &&f, _Args &&args, const _Indices<_Is...> &) -> decltype(f(std::get<_Is>(args)...))
 {
-   return f(std::get<_Indices>(args)...);
+   return f(std::get<_Is>(args)...);
 }
 
 template<typename _Fnc, typename _Args>
-auto call(_Fnc &&f, const _Args &args) -> decltype(_call(f, args, BuildIndices< std::tuple_size<_Args>::value>()))
+auto call(_Fnc &&f, const _Args &args) -> decltype(_call(f, args, _BuildIndices< std::tuple_size<_Args>::value>()))
 {
-    return _call(f, args, BuildIndices< std::tuple_size<_Args>::value>());
+    return _call(f, args, _BuildIndices< std::tuple_size<_Args>::value>());
 }
 
 template<size_t _I>
@@ -93,10 +93,10 @@ struct _Case
       mValues(values)
     {}
 
-    bool operator()(const std::tuple<const _T& ...>& values) const
+    bool operator()(const _T& ... values) const
     {
-        if(values == mValues) {
-            mFnc(values);
+        if(std::make_tuple(values ...)  == mValues) {
+            mFnc(values ...);
             return true;
         }
         return false;
@@ -146,7 +146,8 @@ int main()
     int x = 1, y = 3;
     auto a = _switch<int, int>()
             <= _case(1,0)([](int, int){std::cout << "Hello, World 1-0!" << std::endl;})
-            <= _case(1,1)([](int, int){std::cout << "Hello, World 1-1" << std::endl;});
+            <= _case(1,1)([](int, int){std::cout << "Hello, World 1-1" << std::endl;})
+            <= _case(1,3)([](int, int){std::cout << "Bingo 1-3" << std::endl;});
 
     a(x,y);
     return 0;
