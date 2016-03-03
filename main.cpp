@@ -2,6 +2,11 @@
 #include <tuple>
 #include <functional>
 
+namespace multiswitch
+{
+
+struct _Placeholder {} _;
+
 template<std::size_t ... _Is>
 struct _Indices {};
 
@@ -14,12 +19,14 @@ struct _BuildIndices<0, _Is ...> : _Indices<_Is ...>
 {};
 
 template<typename _Fnc, typename _Args, std::size_t ... _Is>
+inline constexpr
 auto _call(_Fnc &&f, _Args &&args, const _Indices<_Is...> &) -> decltype(f(std::get<_Is>(args)...))
 {
    return f(std::get<_Is>(args)...);
 }
 
 template<typename _Fnc, typename _Args>
+inline constexpr
 auto call(_Fnc &&f, const _Args &args) -> decltype(_call(f, args, _BuildIndices< std::tuple_size<_Args>::value>()))
 {
     return _call(f, args, _BuildIndices< std::tuple_size<_Args>::value>());
@@ -29,16 +36,16 @@ template<size_t _I>
 struct _Index
 {
     using _Next = _Index<_I+1>;
-    static const size_t value = _I;
+    static const constexpr size_t value = _I;
 };
 
 template<typename _Cs, typename _I>
 struct _Evaluate
 {
     template<typename _Values>
-    inline
+    inline constexpr
     static void _evaluate(const _Cs &cs, const _Values& values) {
-        if (!call(std::get<_I::value>(cs), values)) {
+        if (!std::get<_I::value>(cs)(values)) {
             _Evaluate<_Cs, typename _I::_Next>::_evaluate(cs, values);
         }
     };
@@ -48,7 +55,7 @@ template<typename _Cs>
 struct _Evaluate<_Cs, _Index<std::tuple_size<_Cs>::value>>
 {
     template<typename _Values>
-    inline
+    inline constexpr
     static void _evaluate(const _Cs &cs, const _Values& values) {
     };
 };
@@ -87,16 +94,16 @@ template<typename _Fnc, typename ... _T>
 struct _Case
 {
     _Fnc mFnc;
-    std::tuple<const _T& ...> mValues;
-    _Case(_Fnc&& fnc, std::tuple<const _T& ...>&& values)
+    std::tuple<_T ...> mValues;
+    _Case(_Fnc&& fnc, std::tuple<_T ...>&& values)
     : mFnc(fnc),
       mValues(values)
     {}
 
-    bool operator()(const _T& ... values) const
+    bool operator()(const std::tuple<const _T& ...>& values) const
     {
-        if(std::make_tuple(values ...)  == mValues) {
-            mFnc(values ...);
+        if(values  == mValues) {
+            call(mFnc, values);
             return true;
         }
         return false;
@@ -106,7 +113,7 @@ struct _Case
 template<typename ... _T>
 struct _Case<void, _T...>
 {
-    std::tuple<const _T& ...> mValues;
+    std::tuple<_T ...> mValues;
     _Case(const _T & ... values)
     : mValues(values ...)
     {}
@@ -141,8 +148,11 @@ _Switch<std::tuple<_Case<_Fnc, _T ...>>, _T ...> operator <= (_Switch<void, _T .
     return _Switch<std::tuple<_Case<_Fnc, _T ...>>, _T ...>(std::tuple<_Case<_Fnc, _T ...>>(std::forward<_Case<_Fnc, _T ...>>(c)));
 }
 
+}
+
 int main()
 {
+    using namespace multiswitch;
     int x = 1, y = 3;
     auto a = _switch<int, int>()
             <= _case(1,0)([](int, int){std::cout << "Hello, World 1-0!" << std::endl;})
@@ -150,5 +160,14 @@ int main()
             <= _case(1,3)([](int, int){std::cout << "Bingo 1-3" << std::endl;});
 
     a(x,y);
+
+    std::string s1 = "test", s2 = "case";
+    auto b = _switch<std::string, std::string>()
+            <= _case(std::string("a"), std::string("b"))([](std::string, std::string){std::cout << "a-b" << std::endl;})
+            <= _case(std::string("test"), std::string("x"))([](std::string, std::string){std::cout << "test-x" << std::endl;})
+            <= _case(std::string("test"), std::string("case"))([](std::string, std::string){std::cout << "test-case" << std::endl;});
+
+    b(s1, s2);
+
     return 0;
 }
