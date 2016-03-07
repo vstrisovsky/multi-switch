@@ -7,6 +7,12 @@ namespace multiswitch
 
 struct _Placeholder {} _;
 
+template<typename _T>
+bool operator==(const _T&, const _Placeholder&)
+{
+  return true;
+}
+
 template<std::size_t ... _Is>
 struct _Indices {};
 
@@ -100,10 +106,11 @@ struct _Case
       mValues(values)
     {}
 
-    bool operator()(const std::tuple<const _T& ...>& values) const
+    template<typename ... _V>
+    bool operator()(const std::tuple<const _V& ...>& values) const
     {
         if(values  == mValues) {
-            call(mFnc, values);
+            mFnc();
             return true;
         }
         return false;
@@ -132,20 +139,20 @@ _Case<void, _T...> _case(_T && ... values)
     return _Case<void, _T...>(values ...);
 }
 
-template<typename _Cs, typename _Fnc, typename ... _T>
+template<typename _Cs, typename _C, typename ... _T>
 inline constexpr
-auto operator <= (_Switch<_Cs, _T ...>&& s, _Case<_Fnc, _T ...>&& c) ->
-    _Switch<decltype(std::tuple_cat(std::move(s.mCases), std::tuple<_Case<_Fnc, _T ...>>(std::forward<_Case<_Fnc, _T ...>>(c)))), _T ...>
+auto operator <= (_Switch<_Cs, _T ...>&& s, _C&& c) ->
+    _Switch<decltype(std::tuple_cat(std::move(s.mCases), std::tuple<_C>(std::forward<_C>(c)))), _T ...>
 {
-    using _Result =  _Switch<decltype(std::tuple_cat(std::move(s.mCases), std::tuple<_Case<_Fnc, _T ...>>(std::forward<_Case<_Fnc, _T ...>>(c)))), _T ...>;
-    return _Result(std::tuple_cat(std::move(s.mCases), std::tuple<_Case<_Fnc, _T ...>>(std::forward<_Case<_Fnc, _T ...>>(c))));
+    using _Result =  _Switch<decltype(std::tuple_cat(std::move(s.mCases), std::tuple<_C>(std::forward<_C>(c)))), _T ...>;
+    return _Result(std::tuple_cat(std::move(s.mCases), std::tuple<_C>(std::forward<_C>(c))));
 }
 
-template<typename _Fnc, typename ... _T>
+template<typename _C, typename ... _T>
 inline constexpr
-_Switch<std::tuple<_Case<_Fnc, _T ...>>, _T ...> operator <= (_Switch<void, _T ...>&& s, _Case<_Fnc, _T ...>&& c)
+_Switch<std::tuple<_C>, _T ...> operator <= (_Switch<void, _T ...>&& s, _C&& c)
 {
-    return _Switch<std::tuple<_Case<_Fnc, _T ...>>, _T ...>(std::tuple<_Case<_Fnc, _T ...>>(std::forward<_Case<_Fnc, _T ...>>(c)));
+    return _Switch<std::tuple<_C>, _T ...>(std::tuple<_C>(std::forward<_C>(c)));
 }
 
 }
@@ -155,19 +162,22 @@ int main()
     using namespace multiswitch;
     int x = 1, y = 3;
     auto a = _switch<int, int>()
-            <= _case(1,0)([](int, int){std::cout << "Hello, World 1-0!" << std::endl;})
-            <= _case(1,1)([](int, int){std::cout << "Hello, World 1-1" << std::endl;})
-            <= _case(1,3)([](int, int){std::cout << "Bingo 1-3" << std::endl;});
+            <= _case(1,0)([]{std::cout << "Hello, World 1-0!" << std::endl;})
+            <= _case(1,1)([]{std::cout << "Hello, World 1-1" << std::endl;})
+            <= _case(1,3)([]{std::cout << "Bingo 1-3" << std::endl;});
 
     a(x,y);
 
-    std::string s1 = "test", s2 = "case";
-    auto b = _switch<std::string, std::string>()
-            <= _case(std::string("a"), std::string("b"))([](std::string, std::string){std::cout << "a-b" << std::endl;})
-            <= _case(std::string("test"), std::string("x"))([](std::string, std::string){std::cout << "test-x" << std::endl;})
-            <= _case(std::string("test"), std::string("case"))([](std::string, std::string){std::cout << "test-case" << std::endl;});
+    std::string s2 = "case";
+    auto b = _switch<int, std::string>()
+            <= _case(2, "b")([]{std::cout << "2-b" << std::endl;})
+            <= _case(1, _)([]{std::cout << "1-_" << std::endl;})
+            <= _case(1, "case")([]{std::cout << "1-case" << std::endl;})
+            <= _case(_, _)([]{std::cout << "_-_" << std::endl;});
 
-    b(s1, s2);
+    b(2, "b");
+    b(x, s2);
+    b(8, "sxssxsxs");
 
     return 0;
 }
