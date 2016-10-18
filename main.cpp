@@ -5,42 +5,42 @@
 #include <iostream>
 #include <assert.h>
 
-BENCHMARK(MultiswitchBenchmarks, Multiswitch, 10, 1000000)
+BENCHMARK(MultiswitchBenchmarks, Multiswitch, 100, 100000)
 {
   using namespace multiswitch;
   int x = 1, y = 3;
   std::string s2 = "case";
-  int result;
+  int result = 0;
   auto b = _switch<int, std::string>()
           <= _case(2, "b")    ([&result]  {result += 0;})
-          <= _case(1, _)      ([&result]  {result += 1;})
-          <= _case(1, "case") ([&result]  {result += 2;})
+          <= _case(1, "case") ([&result]  {result += 1;})
+          <= _case(1, _)      ([&result]  {result += 2;})
           <= _case(_, _)      ([&result]  {result += 3;});
 
   b(2, "b");
   b(x, s2);
   b(8, "sxssxsxs");
-  assert(result == 5);
+  assert(result == 4);
 }
 
 int doComparision(int i, const std::string& str)
 {
   if(i == 2 and str == "bb")
     return 0;
-  else if(i == 1)
-    return 1;
   else if(i == 1 and str == "case")
+    return 1;
+  else if(i == 1)
     return 2;
   return 3;
 }
 
-BENCHMARK(MultiswitchBenchmarks, if_else, 10, 1000000)
+BENCHMARK(MultiswitchBenchmarks, if_else, 100, 100000)
 {
   int x = 1, y = 3;
   std::string s2 = "case";
 
-  int result = doComparision(2, "b") + doComparision(x, s2) + doComparision(8, "sxssxsxs");
-  assert(result == 5);
+  int result = doComparision(2, "bb") + doComparision(x, s2) + doComparision(8, "sxssxsxs");
+  assert(result == 4);
 }
 
 int main()
