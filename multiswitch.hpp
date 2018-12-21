@@ -68,34 +68,34 @@ struct _Evaluate<_Cs, _Index<std::tuple_size<_Cs>::value>>
     };
 };
 
-template<typename _Cs, typename ... _T>
+template<typename ... _T>
 struct _Switch
 {
-    _Cs mCases;
-    _Switch(_Cs && cases)
-    : mCases(cases)
+    using _ValuePack = std::tuple<const _T& ...>;
+    _ValuePack values;
+    bool eval;
+    _Switch(const _T& ... _values)
+    : values(_values ...)
+    , eval(true)
     {
     }
 
-    void operator()(const _T& ... values)
+    template<typename _C>
+    _Switch<_T ...>& evaluate(_C&& c)
     {
-        _Evaluate<_Cs, _Index<0>>::_evaluate(mCases, std::make_tuple(std::cref(values)...));
-    }
-};
-
-template<typename ... _T>
-struct _Switch<void, _T ...>
-{
-    _Switch()
-    {
+        if (eval && c(values))
+        {
+            eval = false;
+        }
+        return *this;
     }
 };
 
 template<typename ... _T>
 inline constexpr
-_Switch<void, _T...> _switch()
+_Switch<_T...> _switch(const _T& ... values)
 {
-    return _Switch<void, _T...>();
+    return _Switch<_T...>(values...);
 }
 
 template<typename _Fnc, typename ... _T>
@@ -141,23 +141,13 @@ _Case<void, _T...> _case(_T && ... values)
     return _Case<void, _T...>(values ...);
 }
 
-template<typename _Cs, typename _C, typename ... _T>
-inline constexpr
-auto operator <= (_Switch<_Cs, _T ...>&& s, _C&& c) ->
-    _Switch<decltype(std::tuple_cat(std::move(s.mCases), std::tuple<_C>(std::forward<_C>(c)))), _T ...>
-{
-    using _Result =  _Switch<decltype(std::tuple_cat(std::move(s.mCases), std::tuple<_C>(std::forward<_C>(c)))), _T ...>;
-    return _Result(std::tuple_cat(std::move(s.mCases), std::tuple<_C>(std::forward<_C>(c))));
-}
-
 template<typename _C, typename ... _T>
 inline constexpr
-_Switch<std::tuple<_C>, _T ...> operator <= (_Switch<void, _T ...>&& s, _C&& c)
+_Switch<_T ...> operator <= (_Switch<_T ...>&& s, _C&& c)
 {
-    return _Switch<std::tuple<_C>, _T ...>(std::tuple<_C>(std::forward<_C>(c)));
+    return s.evaluate(std::move(c));
 }
 
 }
-
 
 #endif // _MULTISWITCH_HPP_
