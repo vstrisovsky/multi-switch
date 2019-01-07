@@ -143,7 +143,7 @@ _Case<void, _T...> _case(_T && ... values)
 
 template<typename _C, typename ... _T>
 inline constexpr
-_Switch<_T ...> operator <= (_Switch<_T ...>&& s, _C&& c)
+_Switch<_T ...> operator | (_Switch<_T ...>&& s, _C&& c)
 {
     return s.evaluate(std::move(c));
 }
